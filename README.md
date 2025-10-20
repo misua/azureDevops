@@ -202,13 +202,24 @@ az group show --name rg-gitops --output table
 
 #### 1.2 Create Azure Kubernetes Service (AKS)
 
+> **Note on VM Size:** We use `Standard_DC2s_v3` (2 vCPUs, 8GB RAM) as it's available in most Azure subscriptions. If you encounter VM size restrictions, check available sizes with:
+> ```bash
+> az vm list-skus --location eastus --size Standard_DC --output table
+> ```
+
 ```bash
+# Register the AKS provider (first time only)
+az provider register --namespace Microsoft.ContainerService
+
+# Wait for registration (check status)
+az provider show -n Microsoft.ContainerService --query "registrationState" -o tsv
+
 # Create AKS cluster (this takes 5-10 minutes)
 az aks create \
   --resource-group rg-gitops \
   --name aks-gitops-cluster \
   --node-count 2 \
-  --node-vm-size Standard_D2s_v3 \
+  --node-vm-size Standard_DC2s_v3 \
   --enable-managed-identity \
   --generate-ssh-keys \
   --network-plugin azure
@@ -852,6 +863,7 @@ kubectl exec -n observability <alloy-pod> -- curl http://loki:3100/ready
 - **[OBSERVABILITY-RUNBOOK.md](docs/OBSERVABILITY-RUNBOOK.md)**: Operational procedures and queries
 - **[OBSERVABILITY-TROUBLESHOOTING.md](docs/OBSERVABILITY-TROUBLESHOOTING.md)**: Common issues and solutions
 - **[DEPLOYMENT.md](observability/DEPLOYMENT.md)**: Detailed deployment guide
+- **[VM-SIZE-NOTES.md](docs/VM-SIZE-NOTES.md)**: VM size selection and alternatives
 - **[Load Generator](app-repo/load-generator/README.md)**: Traffic generator documentation
 - **[Cleanup Scripts](scripts/cleanup/README.md)**: Resource cleanup documentation
 
