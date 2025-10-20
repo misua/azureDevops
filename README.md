@@ -33,65 +33,54 @@ This project implements a **dual-repository GitOps pattern** with **end-to-end o
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Developer Workflow                          │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────┐      ┌──────────────────┐      ┌──────────────────┐
-│   App Repo  │─────▶│  CI Pipeline     │─────▶│  Azure Container │
-│  (Source)   │      │  (Build/Test)    │      │    Registry      │
-└─────────────┘      └──────────────────┘      └──────────────────┘
-                              │                          │
-                              │ Update Image Tag         │
-                              ▼                          │
-                     ┌──────────────────┐                │
-                     │   Config Repo    │                │
-                     │ (Desired State)  │                │
-                     └──────────────────┘                │
-                              │                          │
-                              │ Git Pull                 │
-                              ▼                          │
-                     ┌──────────────────┐                │
-                     │     ArgoCD       │                │
-                     │ (GitOps Operator)│                │
-                     └──────────────────┘                │
-                              │                          │
-                              │ Deploy                   │ Pull Image
-                              ▼                          │
-┌─────────────────────────────────────────────────────────────────────┐
-│                        AKS Cluster                                  │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │
-│  │  Application   │  │  Application   │  │  Application   │       │
-│  │     (Dev)      │  │   (Staging)    │  │     (Prod)     │◀──────┤
-│  └────────────────┘  └────────────────┘  └────────────────┘       │
-│           │                   │                   │                │
-│           └───────────────────┴───────────────────┘                │
-│                               │                                    │
-│                               ▼                                    │
-│  ┌──────────────────────────────────────────────────────────────┐ │
-│  │              Observability Stack                             │ │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │ │
-│  │  │  Alloy   │─▶│   Loki   │  │  Tempo   │  │Pyroscope │    │ │
-│  │  │(Collector)│ │  (Logs)  │  │ (Traces) │  │(Profiles)│    │ │
-│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │ │
-│  │                       │            │            │            │ │
-│  │                       └────────────┴────────────┘            │ │
-│  │                                    │                         │ │
-│  │                                    ▼                         │ │
-│  │                          ┌──────────────────┐               │ │
-│  │                          │     Grafana      │               │ │
-│  │                          │   (Dashboards)   │               │ │
-│  │                          └──────────────────┘               │ │
-│  └──────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                     ┌──────────────────┐
-                     │  Notifications   │
-                     │  (Slack/Email)   │
-                     └──────────────────┘
+```mermaid
+graph TB
+    subgraph Developer["👨‍💻 Developer Workflow"]
+        Dev[Developer]
+    end
+    
+    Dev -->|Push Code| AppRepo[📦 App Repo<br/>Source Code]
+    AppRepo -->|Trigger| CI[🔨 CI Pipeline<br/>Build & Test]
+    CI -->|Push Image| ACR[🐳 Azure Container<br/>Registry]
+    CI -->|Update Tag| ConfigRepo[⚙️ Config Repo<br/>Desired State]
+    
+    ConfigRepo -->|Git Pull| ArgoCD[🔄 ArgoCD<br/>GitOps Operator]
+    ACR -.->|Pull Image| AKS
+    ArgoCD -->|Deploy| AKS
+    
+    subgraph AKS["☸️ AKS Cluster"]
+        subgraph Apps["Applications"]
+            AppDev[🟢 App Dev]
+            AppStaging[🟡 App Staging]
+            AppProd[🔴 App Prod]
+        end
+        
+        Apps --> LoadGen[📊 Load Generator<br/>Traffic Simulation]
+        
+        subgraph Observability["🔭 Observability Stack"]
+            Alloy[📡 Grafana Alloy<br/>Unified Collector]
+            Loki[📝 Loki<br/>Logs]
+            Tempo[🔍 Tempo<br/>Traces]
+            Pyroscope[📈 Pyroscope<br/>Profiles]
+            Grafana[📊 Grafana<br/>Dashboards]
+            
+            Alloy -->|Logs| Loki
+            Alloy -->|Traces| Tempo
+            Apps -->|Profiles| Pyroscope
+            Apps -->|OTLP| Alloy
+            
+            Loki --> Grafana
+            Tempo --> Grafana
+            Pyroscope --> Grafana
+        end
+    end
+    
+    ArgoCD -->|Deployment Events| Notifications[📧 Notifications<br/>Slack & Email]
+    
+    style Developer fill:#e1f5ff
+    style AKS fill:#fff4e6
+    style Observability fill:#f3e5f5
+    style Apps fill:#e8f5e9
 ```
 
 ## 📦 Prerequisites
@@ -101,15 +90,6 @@ This project implements a **dual-repository GitOps pattern** with **end-to-end o
 Install these tools before starting:
 
 #### 1. Azure CLI
-
-**Windows:**
-```powershell
-# Using winget
-winget install Microsoft.AzureCLI
-
-# Or download installer
-# https://aka.ms/installazurecliwindows
-```
 
 **macOS:**
 ```bash
@@ -127,11 +107,6 @@ az --version
 ```
 
 #### 2. kubectl
-
-**Windows:**
-```powershell
-az aks install-cli
-```
 
 **macOS:**
 ```bash
@@ -151,11 +126,6 @@ kubectl version --client
 
 #### 3. Helm
 
-**Windows:**
-```powershell
-choco install kubernetes-helm
-```
-
 **macOS:**
 ```bash
 brew install helm
@@ -172,12 +142,6 @@ helm version
 ```
 
 #### 4. ArgoCD CLI
-
-**Windows:**
-```powershell
-# Download from GitHub releases
-# https://github.com/argoproj/argo-cd/releases/latest
-```
 
 **macOS:**
 ```bash
@@ -625,6 +589,41 @@ for i in {1..100}; do curl http://localhost:8080; done
 
 ## 📚 Usage
 
+### API Endpoints
+
+The sample app provides realistic REST API endpoints:
+
+- `GET /` - API information
+- `GET /health` - Health check with dependencies
+- `GET /api/users` - List users
+- `POST /api/users` - Create user
+- `GET /api/products` - List/search products
+- `POST /api/orders` - Create order
+- `GET /api/slow` - Slow request (2-5s)
+- `GET /api/error` - Trigger error
+
+See [API Documentation](docs/API.md) for details.
+
+### Traffic Generator
+
+The load generator creates realistic traffic:
+
+```bash
+# Deploy load generator
+kubectl apply -f app-repo/load-generator/deployment.yaml
+
+# View logs
+kubectl logs -f deployment/load-generator
+
+# Stop load generator
+kubectl delete deployment load-generator
+```
+
+**Traffic Patterns:**
+- 70% normal traffic (browsing, orders)
+- 20% traffic spikes
+- 10% errors (for testing alerts)
+
 ### Deploy New Version
 
 ```bash
@@ -848,13 +847,12 @@ kubectl exec -n observability <alloy-pod> -- curl http://loki:3100/ready
 
 ## 📖 Documentation
 
+- **[API.md](docs/API.md)**: API endpoint documentation
 - **[OBSERVABILITY.md](docs/OBSERVABILITY.md)**: Observability architecture and components
 - **[OBSERVABILITY-RUNBOOK.md](docs/OBSERVABILITY-RUNBOOK.md)**: Operational procedures and queries
 - **[OBSERVABILITY-TROUBLESHOOTING.md](docs/OBSERVABILITY-TROUBLESHOOTING.md)**: Common issues and solutions
 - **[DEPLOYMENT.md](observability/DEPLOYMENT.md)**: Detailed deployment guide
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: System architecture details
-- **[RUNBOOK.md](docs/RUNBOOK.md)**: GitOps operations guide
-- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**: General troubleshooting
+- **[Load Generator](app-repo/load-generator/README.md)**: Traffic generator documentation
 - **[Cleanup Scripts](scripts/cleanup/README.md)**: Resource cleanup documentation
 
 ## 🎓 Learning Resources

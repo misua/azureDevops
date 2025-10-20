@@ -6,24 +6,43 @@ Comprehensive observability stack providing end-to-end visibility from code comm
 
 ## Architecture
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   App Pods  │────▶│ Grafana Alloy│────▶│    Loki     │
-└─────────────┘     │  (Collector) │     └─────────────┘
-                    └──────────────┘            │
-┌─────────────┐            │                   │
-│   App Code  │────────────┤            ┌──────▼──────┐
-└─────────────┘     OTLP   │            │   Grafana   │
-                           ├───────────▶│  (Unified)  │
-                           │            └──────▲──────┘
-                           ▼                   │
-                    ┌──────────────┐           │
-                    │    Tempo     │───────────┤
-                    └──────────────┘           │
-                                               │
-┌─────────────┐     ┌──────────────┐          │
-│ Application │────▶│  Pyroscope   │──────────┘
-└─────────────┘     └──────────────┘
+```mermaid
+graph LR
+    subgraph Apps["Applications"]
+        AppPods[App Pods]
+        AppCode[App Code]
+    end
+    
+    subgraph Collection["Collection Layer"]
+        Alloy[Grafana Alloy<br/>Unified Collector]
+    end
+    
+    subgraph Storage["Storage Layer"]
+        Loki[Loki<br/>Log Storage]
+        Tempo[Tempo<br/>Trace Storage]
+        Pyroscope[Pyroscope<br/>Profile Storage]
+    end
+    
+    subgraph Visualization["Visualization"]
+        Grafana[Grafana<br/>Unified Dashboards]
+    end
+    
+    AppPods -->|Container Logs| Alloy
+    AppCode -->|OTLP Traces| Alloy
+    AppCode -->|OTLP Metrics| Alloy
+    AppCode -->|Profiles| Pyroscope
+    
+    Alloy -->|Logs| Loki
+    Alloy -->|Traces| Tempo
+    
+    Loki --> Grafana
+    Tempo --> Grafana
+    Pyroscope --> Grafana
+    
+    style Apps fill:#e8f5e9
+    style Collection fill:#e1f5ff
+    style Storage fill:#fff3e0
+    style Visualization fill:#f3e5f5
 ```
 
 ## Components
