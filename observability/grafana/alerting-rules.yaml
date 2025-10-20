@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting-rules
+  namespace: observability
+data:
+  alerting-rules.yaml: |
+    groups:
+      - name: application-alerts
+        interval: 1m
+        rules:
+          - alert: HighErrorRate
+            expr: |
+              (sum(rate({app="sample-app", level="error"}[5m])) / sum(rate({app="sample-app"}[5m]))) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "High error rate detected in {{ $labels.app }}"
+              description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+              dashboard: "http://grafana.observability.svc.cluster.local:3000/d/application-performance"
+              logs: "http://grafana.observability.svc.cluster.local:3000/explore?left={\"datasource\":\"Loki\",\"queries\":[{\"expr\":\"{app=\\\"sample-app\\\",level=\\\"error\\\"}\"}]}"
+          
+          - alert: SlowTraces
+            expr: |
+              histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[10m])) > 2
+            for: 10m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "P95 latency is high for {{ $labels.service }}"
+              description: "P95 latency is {{ $value }}s, exceeding 2s threshold"
+              traces: "http://grafana.observability.svc.cluster.local:3000/explore?left={\"datasource\":\"Tempo\",\"queries\":[{\"query\":\"{service.name=\\\"sample-app\\\"} && duration > 2s\"}]}"
+          
+          - alert: MemoryLeak
+            expr: |
+              (rate(process_resident_memory_bytes[1h]) / process_resident_memory_bytes) > 0.2
+            for: 1h
+            labels:
+              severity: critical
+              team: backend
+            annotations:
+              summary: "Potential memory leak in {{ $labels.app }}"
+              description: "Memory usage increased by {{ $value | humanizePercentage }} over the last hour"
+              profiles: "http://grafana.observability.svc.cluster.local:3000/explore?left={\"datasource\":\"Pyroscope\",\"queries\":[{\"profileTypeId\":\"memory:alloc_objects:count:space:bytes\",\"labelSelector\":\"{service_name=\\\"sample-app\\\"}\"}]}"
+          
+          - alert: DeploymentFailed
+            expr: |
+              argocd_app_info{sync_status="OutOfSync", health_status!="Healthy"} == 1
+            for: 5m
+            labels:
+              severity: critical
+              team: devops
+            annotations:
+              summary: "Deployment failed for {{ $labels.name }}"
+              description: "Application {{ $labels.name }} is out of sync and unhealthy"
+              argocd: "https://argocd.example.com/applications/{{ $labels.name }}"

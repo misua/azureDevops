@@ -1,0 +1,59 @@
+{
+  "dashboard": {
+    "title": "Pipeline Observability",
+    "tags": ["ci-cd", "pipeline"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Pipeline Execution Timeline",
+        "type": "traces",
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+        "targets": [
+          {
+            "datasource": "Tempo",
+            "queryType": "traceql",
+            "query": "{service.name=\"azure-devops-pipeline\"}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Build Success Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 10},
+        "targets": [
+          {
+            "datasource": "Loki",
+            "expr": "sum(count_over_time({pipeline=~\".+\"} |= \"succeeded\" [24h])) / sum(count_over_time({pipeline=~\".+\"} [24h])) * 100",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Average Build Duration",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 10},
+        "targets": [
+          {
+            "datasource": "Tempo",
+            "queryType": "metrics",
+            "query": "avg(duration) by (service.name)",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Pipeline Logs",
+        "type": "logs",
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 14},
+        "targets": [
+          {
+            "datasource": "Loki",
+            "expr": "{pipeline=~\".+\"} | json",
+            "refId": "A"
+          }
+        ]
+      }
+    ]
+  }
+}

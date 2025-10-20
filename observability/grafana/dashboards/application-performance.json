@@ -1,0 +1,102 @@
+{
+  "dashboard": {
+    "title": "Application Performance (Logs + Traces + Profiles)",
+    "tags": ["observability", "application"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Request Rate",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "expr": "rate(http_requests_total[5m])",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 0},
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "P95 Latency",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 0},
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Application Logs",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+        "targets": [
+          {
+            "datasource": "Loki",
+            "expr": "{app=\"sample-app\"} | json",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showLabels": true,
+          "showTime": true,
+          "wrapLogMessage": true,
+          "enableLogDetails": true
+        }
+      },
+      {
+        "title": "Distributed Traces",
+        "type": "traces",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+        "targets": [
+          {
+            "datasource": "Tempo",
+            "queryType": "traceql",
+            "query": "{service.name=\"sample-app\"}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "CPU Profile (Flame Graph)",
+        "type": "flamegraph",
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 14},
+        "targets": [
+          {
+            "datasource": "Pyroscope",
+            "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+            "labelSelector": "{service_name=\"sample-app\"}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Memory Profile",
+        "type": "flamegraph",
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 24},
+        "targets": [
+          {
+            "datasource": "Pyroscope",
+            "profileTypeId": "memory:alloc_objects:count:space:bytes",
+            "labelSelector": "{service_name=\"sample-app\"}",
+            "refId": "A"
+          }
+        ]
+      }
+    ]
+  }
+}

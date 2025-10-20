@@ -1,0 +1,70 @@
+{
+  "dashboard": {
+    "title": "Deployment Timeline",
+    "tags": ["gitops", "deployments"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Deployment Events",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+        "targets": [
+          {
+            "datasource": "Loki",
+            "expr": "{namespace=\"argocd\"} |= \"sync\" | json",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Deployment Success Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "expr": "rate(argocd_app_sync_total{phase=\"Succeeded\"}[5m]) / rate(argocd_app_sync_total[5m]) * 100",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Active Deployments",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8},
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "expr": "count(argocd_app_info{sync_status=\"Syncing\"})",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Deployment Duration",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "expr": "histogram_quantile(0.95, rate(argocd_app_reconcile_bucket[5m]))",
+            "refId": "A",
+            "legendFormat": "P95"
+          }
+        ]
+      },
+      {
+        "title": "Deployment Logs",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "datasource": "Loki",
+            "expr": "{namespace=\"argocd\", app=\"argocd-application-controller\"}",
+            "refId": "A"
+          }
+        ]
+      }
+    ]
+  }
+}

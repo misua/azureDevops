@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pyroscope-config
+  namespace: observability
+data:
+  server.yml: |
+    log-level: info
+    storage-path: /var/lib/pyroscope
+    api-bind-addr: :4040
+    retention: 168h  # 7 days
+    max-nodes-render: 8192
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pyroscope
+  namespace: observability
+spec:
+  serviceName: pyroscope
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pyroscope
+  template:
+    metadata:
+      labels:
+        app: pyroscope
+    spec:
+      containers:
+      - name: pyroscope
+        image: grafana/pyroscope:1.1.5
+        args:
+          - server
+          - -config=/etc/pyroscope/server.yml
+        ports:
+        - containerPort: 4040
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: /etc/pyroscope
+        - name: storage
+          mountPath: /var/lib/pyroscope
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+      volumes:
+      - name: config
+        configMap:
+          name: pyroscope-config
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pyroscope
+  namespace: observability
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4040
+    targetPort: 4040
+    name: http
+  selector:
+    app: pyroscope

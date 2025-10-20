@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+  namespace: observability
+data:
+  loki.yaml: |
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9096
+    common:
+      path_prefix: /loki
+      storage:
+        filesystem:
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+    schema_config:
+      configs:
+        - from: 2024-01-01
+          store: boltdb-shipper
+          object_store: azure
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /loki/boltdb-shipper-active
+        cache_location: /loki/boltdb-shipper-cache
+        shared_store: azure
+      azure:
+        container_name: loki-chunks
+        account_name: ${AZURE_STORAGE_ACCOUNT}
+        account_key: ${AZURE_STORAGE_KEY}
+    limits_config:
+      retention_period: 720h
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: loki-azure-secret
+  namespace: observability
+type: Opaque
+stringData:
+  AZURE_STORAGE_ACCOUNT: "<your-storage-account>"
+  AZURE_STORAGE_KEY: "<your-storage-key>"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: loki
+  namespace: observability
+spec:
+  serviceName: loki
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      containers:
+      - name: loki
+        image: grafana/loki:2.9.3
+        args:
+          - -config.file=/etc/loki/loki.yaml
+        ports:
+        - containerPort: 3100
+          name: http
+        - containerPort: 9096
+          name: grpc
+        envFrom:
+        - secretRef:
+            name: loki-azure-secret
+        volumeMounts:
+        - name: config
+          mountPath: /etc/loki
+        - name: storage
+          mountPath: /loki
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+      volumes:
+      - name: config
+        configMap:
+          name: loki-config
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: observability
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3100
+    targetPort: 3100
+    name: http
+  - port: 9096
+    targetPort: 9096
+    name: grpc
+  selector:
+    app: loki
