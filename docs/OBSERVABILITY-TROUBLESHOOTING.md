@@ -8,20 +8,20 @@
 
 **Diagnosis**:
 ```bash
-# Check Promtail pods
-kubectl get pods -n observability -l app=promtail
+# Check Alloy pods
+kubectl get pods -n observability -l app=alloy
 
-# Check Promtail logs
-kubectl logs -n observability -l app=promtail --tail=100
+# Check Alloy logs
+kubectl logs -n observability -l app=alloy --tail=100
 
 # Check Loki logs
 kubectl logs -n observability -l app=loki --tail=100
 ```
 
 **Solutions**:
-1. **Promtail not running**: Check DaemonSet status
+1. **Alloy not running**: Check DaemonSet status
    ```bash
-   kubectl describe daemonset promtail -n observability
+   kubectl describe daemonset alloy -n observability
    ```
 
 2. **Loki endpoint unreachable**: Verify service

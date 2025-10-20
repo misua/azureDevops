@@ -51,8 +51,8 @@ kubectl apply -f observability/tempo/tempo-deployment.yaml
 # Deploy Pyroscope
 kubectl apply -f observability/pyroscope/pyroscope-deployment.yaml
 
-# Deploy Promtail
-kubectl apply -f observability/promtail/promtail-daemonset.yaml
+# Deploy Grafana Alloy (unified collector)
+kubectl apply -f observability/alloy/alloy-daemonset.yaml
 
 # Deploy Grafana
 kubectl apply -f observability/grafana/grafana-datasources.yaml

@@ -8,21 +8,21 @@ Comprehensive observability stack providing end-to-end visibility from code comm
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   App Pods  │────▶│   Promtail   │────▶│    Loki     │
-└─────────────┘     └──────────────┘     └─────────────┘
-                                                 │
-┌─────────────┐     ┌──────────────┐            │
-│   App Code  │────▶│ OpenTelemetry│────▶┌──────▼──────┐
-└─────────────┘     │   (OTLP)     │     │   Grafana   │
-                    └──────────────┘     │  (Unified)  │
-                           │              └──────▲──────┘
-                           ▼                     │
-                    ┌──────────────┐            │
-                    │    Tempo     │────────────┘
+│   App Pods  │────▶│ Grafana Alloy│────▶│    Loki     │
+└─────────────┘     │  (Collector) │     └─────────────┘
                     └──────────────┘            │
-                                                 │
-┌─────────────┐     ┌──────────────┐            │
-│ Application │────▶│  Pyroscope   │────────────┘
+┌─────────────┐            │                   │
+│   App Code  │────────────┤            ┌──────▼──────┐
+└─────────────┘     OTLP   │            │   Grafana   │
+                           ├───────────▶│  (Unified)  │
+                           │            └──────▲──────┘
+                           ▼                   │
+                    ┌──────────────┐           │
+                    │    Tempo     │───────────┤
+                    └──────────────┘           │
+                                               │
+┌─────────────┐     ┌──────────────┐          │
+│ Application │────▶│  Pyroscope   │──────────┘
 └─────────────┘     └──────────────┘
 ```
 
@@ -38,7 +38,7 @@ Comprehensive observability stack providing end-to-end visibility from code comm
 - Automatic correlation with traces via trace_id
 
 **Data Sources**:
-- Application pods (via Promtail)
+- Application pods (via Grafana Alloy)
 - Azure DevOps pipelines
 - Infrastructure components
 
@@ -47,8 +47,8 @@ Comprehensive observability stack providing end-to-end visibility from code comm
 # Deploy Loki
 kubectl apply -f observability/loki/loki-deployment.yaml
 
-# Deploy Promtail (log collector)
-kubectl apply -f observability/promtail/promtail-daemonset.yaml
+# Deploy Grafana Alloy (unified collector)
+kubectl apply -f observability/alloy/alloy-daemonset.yaml
 ```
 
 ### 2. Grafana Tempo (Tracing)
@@ -257,7 +257,7 @@ sum by (environment) (rate({app="sample-app", level="error"}[5m]))
 ## Cost Optimization
 
 - **Trace Sampling**: 10% in production reduces storage by 90%
-- **Log Filtering**: Promtail filters debug logs in production
+- **Log Filtering**: Grafana Alloy filters debug logs in production
 - **Profile Aggregation**: Pyroscope aggregates old profiles
 - **Azure Blob Storage**: Cost-effective long-term storage
 
