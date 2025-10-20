@@ -1,0 +1,115 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - README.md
+      - docs/*
+
+variables:
+  - name: dockerRegistryServiceConnection
+    value: 'azure-container-registry-connection'
+  - name: imageRepository
+    value: 'sample-app'
+  - name: containerRegistry
+    value: 'myacr.azurecr.io'
+  - name: dockerfilePath
+    value: '$(Build.SourcesDirectory)/Dockerfile'
+  - name: tag
+    value: '$(Build.SourceVersion)'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+
+stages:
+  - stage: Build
+    displayName: 'Build and Test'
+    jobs:
+      - job: BuildTest
+        displayName: 'Build and Test Application'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - task: UseDotNet@2
+            displayName: 'Install .NET SDK'
+            inputs:
+              packageType: 'sdk'
+              version: '8.x'
+          
+          - script: |
+              dotnet restore
+              dotnet build --configuration Release --no-restore
+            displayName: 'Build Application'
+            workingDirectory: '$(Build.SourcesDirectory)/src'
+          
+          - script: |
+              dotnet test --configuration Release --no-build --verbosity normal
+            displayName: 'Run Unit Tests'
+            workingDirectory: '$(Build.SourcesDirectory)/src'
+
+  - stage: Containerize
+    displayName: 'Build and Push Container'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: Docker
+        displayName: 'Build and Push Docker Image'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - task: Docker@2
+            displayName: 'Build Docker Image'
+            inputs:
+              command: build
+              repository: $(imageRepository)
+              dockerfile: $(dockerfilePath)
+              containerRegistry: $(dockerRegistryServiceConnection)
+              tags: |
+                $(tag)
+                latest
+          
+          - task: Docker@2
+            displayName: 'Push Docker Image'
+            inputs:
+              command: push
+              repository: $(imageRepository)
+              containerRegistry: $(dockerRegistryServiceConnection)
+              tags: |
+                $(tag)
+                latest
+
+  - stage: UpdateManifests
+    displayName: 'Update Config Repository'
+    dependsOn: Containerize
+    condition: succeeded()
+    jobs:
+      - job: UpdateConfig
+        displayName: 'Update Kubernetes Manifests'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - checkout: self
+            persistCredentials: true
+          
+          - task: Bash@3
+            displayName: 'Clone Config Repository'
+            inputs:
+              targetType: 'inline'
+              script: |
+                git clone https://$(System.AccessToken)@dev.azure.com/myorg/myproject/_git/config-repo
+                cd config-repo
+                git config user.email "azdo-pipeline@example.com"
+                git config user.name "Azure DevOps Pipeline"
+          
+          - task: Bash@3
+            displayName: 'Update Image Tag in Helm Values'
+            inputs:
+              targetType: 'inline'
+              script: |
+                cd config-repo/environments/dev
+                sed -i "s|tag:.*|tag: $(tag)|g" values.yaml
+                
+                git add values.yaml
+                git commit -m "chore: update $(imageRepository) to $(Build.SourceVersion)"
+                git push origin main

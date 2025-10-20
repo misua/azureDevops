@@ -1,0 +1,85 @@
+trigger:
+  branches:
+    include:
+      - main
+      - staging
+      - prod
+  paths:
+    include:
+      - environments/**
+
+pr:
+  branches:
+    include:
+      - main
+      - staging
+      - prod
+
+variables:
+  vmImageName: 'ubuntu-latest'
+
+stages:
+  - stage: Validate
+    displayName: 'Validate Kubernetes Manifests'
+    jobs:
+      - job: YAMLLint
+        displayName: 'YAML Syntax Validation'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.x'
+              addToPath: true
+          
+          - script: |
+              pip install yamllint
+              yamllint -c .yamllint environments/
+            displayName: 'Run YAML Lint'
+      
+      - job: KubernetesValidation
+        displayName: 'Kubernetes Schema Validation'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - script: |
+              wget https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+              tar xf kubeconform-linux-amd64.tar.gz
+              sudo mv kubeconform /usr/local/bin/
+            displayName: 'Install kubeconform'
+          
+          - script: |
+              helm template sample-app ../app-repo/k8s/helm/sample-app \
+                -f environments/dev/values.yaml | \
+                kubeconform -strict -summary
+            displayName: 'Validate Dev Environment'
+          
+          - script: |
+              helm template sample-app ../app-repo/k8s/helm/sample-app \
+                -f environments/staging/values.yaml | \
+                kubeconform -strict -summary
+            displayName: 'Validate Staging Environment'
+          
+          - script: |
+              helm template sample-app ../app-repo/k8s/helm/sample-app \
+                -f environments/prod/values.yaml | \
+                kubeconform -strict -summary
+            displayName: 'Validate Production Environment'
+      
+      - job: SecurityScan
+        displayName: 'Security Policy Validation'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - script: |
+              wget https://github.com/instrumenta/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz
+              tar xzf conftest_Linux_x86_64.tar.gz
+              sudo mv conftest /usr/local/bin/
+            displayName: 'Install Conftest'
+          
+          - script: |
+              helm template sample-app ../app-repo/k8s/helm/sample-app \
+                -f environments/prod/values.yaml | \
+                conftest test - -p policy/
+            displayName: 'Run Security Policy Tests'
+            continueOnError: true
