@@ -4,16 +4,14 @@ A production-ready GitOps implementation for Kubernetes deployments using Azure 
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Complete Setup Guide](#complete-setup-guide)
-- [Verification](#verification)
-- [Usage](#usage)
-- [Observability](#observability)
-- [Cleanup](#cleanup)
-- [Troubleshooting](#troubleshooting)
-- [Documentation](#documentation)
+- [🎯 Overview](#-overview)
+- [🛠️ Technologies Used](#️-technologies-used)
+- [🏗️ Architecture](#️-architecture)
+- [📦 Prerequisites](#-prerequisites)
+- [🚀 Complete Setup Guide](#-complete-setup-guide)
+- [🧹 Cleanup](#-cleanup)
+- [🔧 Troubleshooting](#-troubleshooting)
+- [📖 Documentation](#-documentation)
 
 ## 🎯 Overview
 
@@ -30,6 +28,35 @@ This project implements a **dual-repository GitOps pattern** with **end-to-end o
 - ✅ **Unified Collection**: Grafana Alloy for logs, metrics, and traces
 - ✅ **Deployment Notifications**: Slack and email alerts for all deployments
 - ✅ **Multi-Environment**: Dev, Staging, Production configurations
+
+## 🛠️ Technologies Used
+
+### Cloud & Infrastructure
+- **[Azure Kubernetes Service (AKS)](https://azure.microsoft.com/en-us/products/kubernetes-service)** - Managed Kubernetes cluster
+- **[Azure Container Registry (ACR)](https://azure.microsoft.com/en-us/products/container-registry)** - Private Docker registry
+- **[Azure Storage](https://azure.microsoft.com/en-us/products/storage)** - Blob storage for observability data
+
+### GitOps & CI/CD
+- **[ArgoCD](https://argo-cd.readthedocs.io/)** - Declarative GitOps continuous delivery
+- **[Azure DevOps Pipelines](https://azure.microsoft.com/en-us/products/devops/pipelines)** - CI/CD automation
+- **[Helm](https://helm.sh/)** - Kubernetes package manager
+
+### Observability Stack
+- **[Grafana](https://grafana.com/)** - Visualization and dashboards
+- **[Loki](https://grafana.com/oss/loki/)** - Log aggregation system
+- **[Tempo](https://grafana.com/oss/tempo/)** - Distributed tracing backend
+- **[Pyroscope](https://grafana.com/oss/pyroscope/)** - Continuous profiling platform
+- **[Grafana Alloy](https://grafana.com/docs/alloy/)** - OpenTelemetry collector
+
+### Application Stack
+- **[.NET 8](https://dotnet.microsoft.com/)** - Application framework (C#)
+- **[OpenTelemetry](https://opentelemetry.io/)** - Observability instrumentation
+- **[Docker](https://www.docker.com/)** - Container runtime
+
+### Development Tools
+- **[kubectl](https://kubernetes.io/docs/reference/kubectl/)** - Kubernetes CLI
+- **[Azure CLI](https://docs.microsoft.com/en-us/cli/azure/)** - Azure management CLI
+- **[k9s](https://k9scli.io/)** (optional) - Terminal UI for Kubernetes
 
 ## 🏗️ Architecture
 
