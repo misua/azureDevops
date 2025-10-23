@@ -880,6 +880,39 @@ kubectl logs -n observability -l app=loki --tail=50
 kubectl exec -n observability <alloy-pod> -- curl http://loki:3100/ready
 ```
 
+## 🧹 Cleanup
+
+### Quick Cleanup (Everything)
+
+Delete all Azure resources (AKS, ACR, Storage):
+
+```bash
+./scripts/cleanup/cleanup-azure.sh --resource-group rg-gitops
+```
+
+### Partial Cleanup
+
+**Remove only Kubernetes resources (keep Azure infrastructure):**
+```bash
+./scripts/cleanup/cleanup-kubernetes.sh
+```
+
+**Remove only observability stack (keep apps and ArgoCD):**
+```bash
+./scripts/cleanup/cleanup-observability.sh
+```
+
+### Manual Cleanup
+
+```bash
+# Delete Kubernetes namespaces
+kubectl delete namespace observability
+kubectl delete namespace argocd
+
+# Delete Azure resource group
+az group delete --name rg-gitops --yes
+```
+
 ## 📖 Documentation
 
 - **[API.md](docs/API.md)**: API endpoint documentation
