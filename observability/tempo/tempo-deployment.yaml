@@ -26,11 +26,7 @@ data:
         block_retention: 336h  # 14 days
     storage:
       trace:
-        backend: azure
-        azure:
-          container_name: tempo-traces
-          storage_account_name: ${AZURE_STORAGE_ACCOUNT}
-          storage_account_key: ${AZURE_STORAGE_KEY}
+        backend: local
         wal:
           path: /var/tempo/wal
         local:

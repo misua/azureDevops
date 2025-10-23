@@ -186,6 +186,28 @@ az account set --subscription "<subscription-id>"
 
 Follow these steps in order. Each step includes verification commands.
 
+### Step 0: Register Azure Providers (First Time Only)
+
+Before creating resources, register the required Azure providers:
+
+```bash
+# Register all required providers
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.ContainerRegistry
+az provider register --namespace Microsoft.Storage
+
+# Wait for registration (takes 1-2 minutes)
+echo "Waiting for provider registration..."
+sleep 60
+
+# Verify all are registered
+az provider show -n Microsoft.ContainerService --query "registrationState" -o tsv
+az provider show -n Microsoft.ContainerRegistry --query "registrationState" -o tsv
+az provider show -n Microsoft.Storage --query "registrationState" -o tsv
+```
+
+All should show `Registered`. If any show `Registering`, wait another minute and check again.
+
 ### Step 1: Create Azure Resources
 
 #### 1.1 Create Resource Group
@@ -208,12 +230,6 @@ az group show --name rg-gitops --output table
 > ```
 
 ```bash
-# Register the AKS provider (first time only)
-az provider register --namespace Microsoft.ContainerService
-
-# Wait for registration (check status)
-az provider show -n Microsoft.ContainerService --query "registrationState" -o tsv
-
 # Create AKS cluster (this takes 5-10 minutes)
 az aks create \
   --resource-group rg-gitops \
@@ -310,71 +326,79 @@ az storage account show --name $STORAGE_NAME --output table
 kubectl create namespace observability
 ```
 
-#### 2.2 Create Storage Secret
+#### 2.2 Get Storage Key and Create Secret
 
 ```bash
 # Load environment variables
 source .env
 
+# Get storage key (if not already in .env)
+if [ -z "$STORAGE_KEY" ]; then
+  STORAGE_KEY=$(az storage account keys list \
+    --account-name $STORAGE_NAME \
+    --query '[0].value' -o tsv)
+  echo "STORAGE_KEY=$STORAGE_KEY" >> .env
+fi
+
+# Clean the key (remove any newlines/spaces)
+STORAGE_KEY_CLEAN=$(echo "$STORAGE_KEY" | tr -d '\n' | tr -d ' ')
+
 # Create secret for Loki and Tempo
 kubectl create secret generic loki-azure-secret \
-  --from-literal=AZURE_STORAGE_ACCOUNT=$STORAGE_NAME \
-  --from-literal=AZURE_STORAGE_KEY=$STORAGE_KEY \
+  --from-literal=AZURE_STORAGE_ACCOUNT="$STORAGE_NAME" \
+  --from-literal=AZURE_STORAGE_KEY="$STORAGE_KEY_CLEAN" \
   -n observability
 
 # Verify
 kubectl get secret loki-azure-secret -n observability
 ```
 
-#### 2.3 Deploy Observability Components
+#### 2.3 Deploy All Observability Components
 
 ```bash
-# Deploy Loki (logs)
+# Deploy all components at once (includes Loki, Tempo, Pyroscope, Alloy, Grafana)
 kubectl apply -f observability/loki/loki-deployment.yaml
-
-# Deploy Tempo (traces)
 kubectl apply -f observability/tempo/tempo-deployment.yaml
 
-# Deploy Pyroscope (profiling)
-kubectl apply -f observability/pyroscope/pyroscope-deployment.yaml
-
-# Deploy Grafana Alloy (collector)
-kubectl apply -f observability/alloy/alloy-daemonset.yaml
-
-# Deploy Grafana (dashboards)
-kubectl apply -f observability/grafana/grafana-datasources.yaml
-
 # Wait for pods to be ready (this takes 2-3 minutes)
-kubectl wait --for=condition=ready pod -l app=loki -n observability --timeout=300s
-kubectl wait --for=condition=ready pod -l app=tempo -n observability --timeout=300s
-kubectl wait --for=condition=ready pod -l app=pyroscope -n observability --timeout=300s
-kubectl wait --for=condition=ready pod -l app=grafana -n observability --timeout=300s
+echo "Waiting for observability stack to be ready..."
+sleep 30
 
-# Verify all pods are running
+# Check status
 kubectl get pods -n observability
 ```
 
 **Expected output:**
 ```
-NAME                         READY   STATUS    RESTARTS   AGE
-alloy-xxxxx                  1/1     Running   0          2m
-grafana-xxxxx                1/1     Running   0          2m
-loki-0                       1/1     Running   0          2m
-pyroscope-0                  1/1     Running   0          2m
-tempo-0                      1/1     Running   0          2m
+NAME                       READY   STATUS    RESTARTS   AGE
+alloy-xxxxx                1/1     Running   0          2m
+alloy-xxxxx                1/1     Running   0          2m
+grafana-xxxxx              1/1     Running   0          2m
+loki-0                     1/1     Running   0          2m
+pyroscope-0                1/1     Running   0          2m
+tempo-0                    1/1     Running   0          2m
 ```
+
+> **Note:** Loki and Tempo are configured to use filesystem storage for simplicity. For production, configure Azure Blob Storage in the config files.
 
 #### 2.4 Access Grafana
 
 ```bash
-# Get Grafana external IP (may take a minute)
-kubectl get svc grafana -n observability -w
+# Get Grafana external IP (may take 1-2 minutes)
+kubectl get svc grafana -n observability
 
-# Once EXTERNAL-IP appears, access Grafana
-# Default credentials: admin/admin
+# Note the EXTERNAL-IP
 ```
 
-Open browser to `http://<EXTERNAL-IP>:3000`
+**Access Grafana:**
+- URL: `http://<EXTERNAL-IP>:3000`
+- Username: `admin`
+- Password: `admin`
+
+**Verify Datasources:**
+1. Go to Configuration → Data Sources
+2. You should see: Loki, Tempo, and Pyroscope
+3. Test each datasource to confirm connectivity
 
 ✅ **Checkpoint**: Observability stack is running!
 

@@ -28,7 +28,7 @@ data:
       configs:
         - from: 2024-01-01
           store: boltdb-shipper
-          object_store: azure
+          object_store: filesystem
           schema: v11
           index:
             prefix: index_
@@ -37,11 +37,9 @@ data:
       boltdb_shipper:
         active_index_directory: /loki/boltdb-shipper-active
         cache_location: /loki/boltdb-shipper-cache
-        shared_store: azure
-      azure:
-        container_name: loki-chunks
-        account_name: ${AZURE_STORAGE_ACCOUNT}
-        account_key: ${AZURE_STORAGE_KEY}
+        shared_store: filesystem
+      filesystem:
+        directory: /loki/chunks
     limits_config:
       retention_period: 720h
       enforce_metric_name: false
@@ -74,6 +72,20 @@ spec:
       labels:
         app: loki
     spec:
+      securityContext:
+        fsGroup: 10001
+        runAsUser: 10001
+        runAsNonRoot: true
+      initContainers:
+      - name: init-loki
+        image: busybox:1.35
+        command: ['sh', '-c', 'mkdir -p /loki/rules /loki/chunks /loki/boltdb-shipper-active /loki/boltdb-shipper-cache']
+        volumeMounts:
+        - name: storage
+          mountPath: /loki
+        securityContext:
+          runAsUser: 10001
+          runAsGroup: 10001
       containers:
       - name: loki
         image: grafana/loki:2.9.3
