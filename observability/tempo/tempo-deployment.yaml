@@ -34,8 +34,6 @@ data:
         pool:
           max_workers: 100
           queue_depth: 10000
-    overrides:
-      per_tenant_override_config: /conf/overrides.yaml
 ---
 apiVersion: apps/v1
 kind: StatefulSet
